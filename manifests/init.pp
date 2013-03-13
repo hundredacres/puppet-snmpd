@@ -210,9 +210,11 @@ class snmpd (
   $snmpcontact         = params_lookup( 'snmpcontact' ),
   $my_class            = params_lookup( 'my_class' ),
   $source              = params_lookup( 'source' ),
+  $sysconfig_source = params_lookup( 'sysconfig_source' ),
   $source_dir          = params_lookup( 'source_dir' ),
   $source_dir_purge    = params_lookup( 'source_dir_purge' ),
   $template            = params_lookup( 'template' ),
+  $sysconfig_template = params_lookup( 'sysconfig_template' ),
   $service_autorestart = params_lookup( 'service_autorestart' , 'global' ),
   $options             = params_lookup( 'options' ),
   $version             = params_lookup( 'version' ),
@@ -296,6 +298,11 @@ class snmpd (
     default => 'present',
   }
 
+  $manage_sysconfig_file = $snmpd::bool_absent ? {
+    true    => 'absent',
+    default => 'present',
+  }
+
   if $snmpd::bool_absent == true
   or $snmpd::bool_disable == true
   or $snmpd::bool_disableboot == true {
@@ -326,9 +333,19 @@ class snmpd (
     default   => $snmpd::source,
   }
 
+  $manage_sysconfig_file_source = $snmpd::sysconfig_source ? {
+    ''      => undef,
+    default => $snmpd::sysconfig_source,
+  }
+
   $manage_file_content = $snmpd::template ? {
     ''        => undef,
     default   => template($snmpd::template),
+  }
+
+  $manage_sysconfig_file_content = $snmpd::sysconfig_template ? {
+    ''      => undef,
+    default => template($snmpd::sysconfig_template),
   }
 
   ### Managed resources
@@ -356,6 +373,18 @@ class snmpd (
     source  => $snmpd::manage_file_source,
     content => $snmpd::manage_file_content,
     replace => $snmpd::manage_file_replace,
+    audit   => $snmpd::manage_audit,
+  }
+
+  file { 'snmpd.options':
+    ensure  => $snmpd::manage_sysconfig_file,
+    path    => $snmpd::config_file_init,
+    owner   => $snmpd::config_file_owner,
+    group   => $snmpd::config_file_group,
+    require => Package[$snmpd::package],
+    notify  => $snmpd::manage_service_autorestart,
+    source  => $snmpd::manage_sysconfig_file_source,
+    content => $snmpd::manage_sysconfig_file_content,
     audit   => $snmpd::manage_audit,
   }
 
