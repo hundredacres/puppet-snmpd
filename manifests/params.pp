@@ -15,8 +15,8 @@
 class snmpd::params {
 
   $snmpname = $::fqdn
-  $snmplocation = ""
-  $snmpcontact = ""
+  $snmplocation = ''
+  $snmpcontact = ''
 
   ### Application related parameters
 
@@ -26,6 +26,7 @@ class snmpd::params {
       '5.11' => 'net-snmp',
     },
     /(?i:RedHat|Centos|Scientific|Linux|Amazon)/ => 'net-snmp',
+    /(?i:OpenBSD)/                               => 'net-snmp',
     default                                      => 'snmpd',
   }
 
@@ -34,6 +35,7 @@ class snmpd::params {
       '5.10' => 'snmpx',
       '5.11' => 'net-snmp',
     },
+    /(?i:OpenBSD)/ => 'netsnmpd',
     default        => 'snmpd',
   }
 
@@ -58,6 +60,7 @@ class snmpd::params {
       '5.10' => '/etc/snmp/conf',
       '5.11' => '/etc/net-snmp/snmp',
     },
+    /(?i:OpenBSD)/  => '/etc/snmp',
     default         => '/etc/snmpd',
   }
 
@@ -71,6 +74,7 @@ class snmpd::params {
 
   $config_file_mode = $::operatingsystem ? {
     /(?i:Solaris)/ => '0444',
+    /(?i:Debian)/  => '0600',
     default        => '0644',
   }
 
@@ -80,12 +84,14 @@ class snmpd::params {
 
   $config_file_group = $::operatingsystem ? {
     /(?i:Solaris)/ => 'bin',
+    /(?i:OpenBSD)/ => 'wheel',
     default        => 'root',
   }
 
   $config_file_init = $::operatingsystem ? {
     /(?i:Debian|Ubuntu|Mint)/                    => '/etc/default/snmpd',
     /(?i:RedHat|Centos|Scientific|Linux|Amazon)/ => '/etc/sysconfig/snmpd.options',
+    /(?i:OpenBSD)/                               => '',
     default                                      => '/etc/sysconfig/snmpd',
   }
 
@@ -114,6 +120,7 @@ class snmpd::params {
   $source_dir = ''
   $source_dir_purge = false
   $template = ''
+  $content = ''
   $options = ''
   $service_autorestart = true
   $version = 'present'

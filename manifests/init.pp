@@ -36,6 +36,13 @@
 #   Note source and template parameters are mutually exclusive: don't use both
 #   Can be defined also by the (top scope) variable $snmpd_template
 #
+# [*content*]
+#   Defines the content of the main configuration file, to be used as alternative
+#   to template when the content is populated on other ways.
+#   If defined, snmpd main config file has: content => $content
+#   Note: source, template and content are mutually exclusive.
+#   If a template is defined, that has precedence on the content parameter
+#
 # [*options*]
 #   An hash of custom options to be used in templates for arbitrary settings.
 #   Can be defined also by the (top scope) variable $snmpd_options
@@ -210,11 +217,12 @@ class snmpd (
   $snmpcontact         = params_lookup( 'snmpcontact' ),
   $my_class            = params_lookup( 'my_class' ),
   $source              = params_lookup( 'source' ),
-  $sysconfig_source = params_lookup( 'sysconfig_source' ),
+  $sysconfig_source    = params_lookup( 'sysconfig_source' ),
   $source_dir          = params_lookup( 'source_dir' ),
   $source_dir_purge    = params_lookup( 'source_dir_purge' ),
   $template            = params_lookup( 'template' ),
-  $sysconfig_template = params_lookup( 'sysconfig_template' ),
+  $sysconfig_template  = params_lookup( 'sysconfig_template' ),
+  $content             = params_lookup( 'content' ),
   $service_autorestart = params_lookup( 'service_autorestart' , 'global' ),
   $options             = params_lookup( 'options' ),
   $version             = params_lookup( 'version' ),
@@ -267,6 +275,11 @@ class snmpd (
   $manage_package = $snmpd::bool_absent ? {
     true  => 'absent',
     false => $snmpd::version,
+  }
+
+  $require_package = $snmpd::package ? {
+    ''      => undef,
+    default => Package["$snmpd::package"],
   }
 
   $manage_service_enable = $snmpd::bool_disableboot ? {
@@ -339,7 +352,10 @@ class snmpd (
   }
 
   $manage_file_content = $snmpd::template ? {
-    ''        => undef,
+    ''        => $snmpd::content ? {
+      ''      => undef,
+      default => $snmpd::content,
+    },
     default   => template($snmpd::template),
   }
 
@@ -349,8 +365,10 @@ class snmpd (
   }
 
   ### Managed resources
-  package { $snmpd::package:
-    ensure => $snmpd::manage_package,
+  if $snmpd::package {
+    package { $snmpd::package:
+      ensure => $snmpd::manage_package,
+    }
   }
 
   service { 'snmpd':
@@ -359,7 +377,7 @@ class snmpd (
     enable     => $snmpd::manage_service_enable,
     hasstatus  => $snmpd::service_status,
     pattern    => $snmpd::process,
-    require    => Package[$snmpd::package],
+    require    => $require_package,
   }
 
   file { 'snmpd.conf':
@@ -368,7 +386,7 @@ class snmpd (
     mode    => $snmpd::config_file_mode,
     owner   => $snmpd::config_file_owner,
     group   => $snmpd::config_file_group,
-    require => Package[$snmpd::package],
+    require => $require_package,
     notify  => $snmpd::manage_service_autorestart,
     source  => $snmpd::manage_file_source,
     content => $snmpd::manage_file_content,
@@ -393,7 +411,7 @@ class snmpd (
     file { 'snmpd.dir':
       ensure  => directory,
       path    => $snmpd::config_dir,
-      require => Package[$snmpd::package],
+      require => $require_package,
       notify  => $snmpd::manage_service_autorestart,
       source  => $snmpd::source_dir,
       recurse => true,
